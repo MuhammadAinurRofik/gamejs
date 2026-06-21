@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Maze Runner 3D - Monster Health Update</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; user-select: none; touch-action: none; }
+        canvas { display: block; }
+        
+        #blocker { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 20; backdrop-filter: blur(8px); flex-direction: column; }
+        #mc-menu { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .mc-logo { font-family: 'VT323', monospace; font-size: 100px; color: #4cd137; text-shadow: 6px 6px 0 #205c16; margin-bottom: 30px; letter-spacing: 5px; text-align: center; line-height: 1; }
+        .mc-btn { width: 350px; height: 55px; background: #717171; border: 4px solid #000; box-shadow: inset -4px -4px 0px 0px #3E3E3E, inset 4px 4px 0px 0px #9E9E9E; color: #FFF; font-family: 'VT323', monospace; font-size: 30px; text-shadow: 2px 2px 0 #3f3f3f; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.1s; text-decoration: none; }
+        .mc-btn:hover { background: #8FA8E0; box-shadow: inset -4px -4px 0px 0px #4b5e8c, inset 4px 4px 0px 0px #b0c4de; text-shadow: 2px 2px 0 #4b5e8c; }
+        .mc-btn:active { transform: scale(0.95); }
+
+        .level-selector { display: flex; gap: 10px; width: 350px; justify-content: space-between; }
+        .level-selector .mc-btn { width: auto; font-size: 32px; }
+        .level-selector #level-display { flex: 1; cursor: default; pointer-events: none; background: #555; box-shadow: inset -4px -4px 0px 0px #2a2a2a, inset 4px 4px 0px 0px #888;}
+        .level-selector #prev-level, .level-selector #next-level { width: 65px; font-weight: bold; background: #60a3bc; box-shadow: inset -4px -4px 0px 0px #3c6372, inset 4px 4px 0px 0px #82ccde;}
+        .level-selector #prev-level:hover, .level-selector #next-level:hover { background: #8FA8E0; }
+        .btn-disabled { background: #444 !important; color: #777 !important; cursor: not-allowed !important; box-shadow: inset -4px -4px 0px 0px #222, inset 4px 4px 0px 0px #555 !important; text-shadow: none !important; }
+
+        #win-screen { position: absolute; width: 100%; height: 100%; background-color: rgba(255, 215, 0, 0.85); display: none; justify-content: center; align-items: center; flex-direction: column; color: white; z-index: 30; backdrop-filter: blur(5px); }
+        #win-screen h1 { font-size: 100px; margin: 0; text-shadow: 6px 6px 0 #b38000; color: #fff; font-family: 'VT323', monospace; }
+        #win-screen p { font-size: 30px; margin-bottom: 30px; font-family: 'VT323', monospace; text-align: center; text-shadow: 2px 2px 0 #b38000;}
+
+        /* UI Penembak & Crosshair */
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; box-shadow: 0 0 4px black; }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: white; }
+        #crosshair::before { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+        #crosshair::after { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+        #ammo-display { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: #00ffff; padding: 10px 20px; border-radius: 8px; font-size: 32px; font-family: 'VT323', monospace; font-weight: bold; border: 2px solid #00ffff; z-index: 15; display: none; }
+
+        #level-indicator { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); color: #ffaa00; padding: 5px 15px; border-radius: 8px; font-size: 32px; font-family: 'VT323', monospace; font-weight: bold; border: 2px solid #ffaa00; z-index: 15; }
+        #controls-info { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px 10px; border-radius: 8px; font-size: 18px; font-family: 'VT323', monospace; pointer-events: none; z-index: 15; }
+        #minimap { position: absolute; top: 20px; right: 20px; background-color: rgba(0, 0, 0, 0.6); border: 3px solid #4cd137; border-radius: 8px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.8); z-index: 15; pointer-events: none; display: none; }
+
+        #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #joystick-base { position: absolute; bottom: 40px; left: 40px; width: 130px; height: 130px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; pointer-events: auto; }
+        #joystick-stick { position: absolute; top: 35px; left: 35px; width: 60px; height: 60px; background: rgba(255,255,255,0.4); border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .action-btns { position: absolute; bottom: 40px; right: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; pointer-events: auto; }
+        .btn-circle { width: 60px; height: 60px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-size: 24px; pointer-events: auto; cursor: pointer; }
+        .btn-circle:active { background: rgba(255,255,255,0.5); transform: scale(0.9); }
+        
+        @media (max-width: 768px) { 
+            .mc-logo { font-size: 70px; } 
+            .mc-btn, .level-selector { width: 80%; } 
+            .level-selector .mc-btn { font-size: 24px; }
+            .level-selector #prev-level, .level-selector #next-level { width: 50px; }
+            #minimap { width: 120px; height: 120px; top: 10px; right: 10px; border-width: 2px; } 
+            #level-indicator { top: 10px; left: 10px; font-size: 24px; } 
+            #ammo-display { bottom: 180px; font-size: 24px; } 
+        }
+    </style>
+</head>
+<body>
+    <div id="level-indicator">LEVEL X</div>
+    <div id="ammo-display">PELURU: 0</div>
+
+    <div id="blocker">
+        <div id="mc-menu">
+            <div class="mc-logo" id="menu-title">MAZE RUNNER 3D</div>
+            
+            <div class="level-selector">
+                <div class="mc-btn" id="prev-level">&lt;</div>
+                <div class="mc-btn" id="level-display">Level 1</div>
+                <div class="mc-btn" id="next-level">&gt;</div>
+            </div>
+
+            <div class="mc-btn" id="play-btn">Mulai Petualangan</div>
+            <a href="../gamelist.html" class="mc-btn" style="text-decoration: none;">Kembali ke Menu Game</a>
+        </div>
+    </div>
+
+    <div id="win-screen">
+        <h1 id="win-title">LEVEL CLEARED!</h1>
+        <p id="win-desc">Anda berhasil keluar dari Labirin!</p>
+        <div class="mc-btn" id="next-btn">Lanjut Level Selanjutnya</div>
+    </div>
+
+    <div id="crosshair"></div>
+    <div id="controls-info">Cari Balok Emas! Hindari Monster!</div>
+    <canvas id="minimap" width="150" height="150"></canvas>
+    
+    <div id="mobile-ui">
+        <div id="joystick-base"><div id="joystick-stick"></div></div>
+        <div class="action-btns">
+            <div class="btn-circle" id="m-shoot" style="display: none; background: rgba(0,150,255,0.4); border-color: #00ffff;">🔫</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <script>
+        const MAX_LEVEL = 7;
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentLevel = parseInt(urlParams.get('level')) || 1; 
+
+        if (currentLevel > MAX_LEVEL) currentLevel = MAX_LEVEL;
+        if (currentLevel < 1) currentLevel = 1;
+
+        document.getElementById('level-indicator').innerText = "LEVEL " + currentLevel;
+
+        const script = document.createElement('script');
+        script.src = 'level' + currentLevel + '.js';
+        
+        script.onload = () => { initGame(); };
+        script.onerror = () => {
+            alert('Tamat! Level ' + currentLevel + ' belum dibuat.');
+            window.location.href = '../gamelist.html';
+        };
+        document.head.appendChild(script);
+
+        function initGame() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                document.getElementById('controls-info').innerText = "Joystick untuk maju. Ketuk 🔫 untuk Menembak.";
+            } else {
+                document.getElementById('controls-info').innerText = "WASD untuk jalan. Klik Kiri untuk Menembak.";
+            }
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            scene.fog = new THREE.Fog(0x0a0a1a, 2, 15); 
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 1.5); 
+            scene.add(ambientLight);
+
+            const playerLight = new THREE.PointLight(0xffeedd, 1.5, 12);
+            scene.add(playerLight);
+
+            const textureLoader = new THREE.TextureLoader();
+            function loadPixelTex(path) {
+                const tex = textureLoader.load(path);
+                tex.magFilter = THREE.NearestFilter;
+                tex.minFilter = THREE.NearestFilter;
+                return tex;
+            }
+
+            const matWall = new THREE.MeshLambertMaterial({ map: loadPixelTex('../textures/stone.png') });
+            const matFloor = new THREE.MeshLambertMaterial({ map: loadPixelTex('../textures/wood.png') });
+            const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+            const blockMap = new Map(); 
+
+            function addBlock(x, y, z, material) {
+                const mesh = new THREE.Mesh(boxGeo, material);
+                mesh.position.set(x, y, z);
+                scene.add(mesh);
+                blockMap.set(`${x},${y},${z}`, mesh);
+            }
+
+            const mazeGrid = window.mazeGrid;
+            const gridCols = mazeGrid[0].length;
+            const gridRows = mazeGrid.length;
+            
+            let exitPortal = null;
+            let enemies = []; 
+            let weaponPickups = []; 
+            let bullets = [];       
+            let hasWeapon = false;
+            let ammo = 0;
+
+            function updateAmmoUI() {
+                document.getElementById('ammo-display').innerText = "PELURU: " + ammo;
+            }
+
+            // AI PATHFINDING BFS
+            function getNextMove(mX, mZ, pX, pZ) {
+                let startX = Math.round(mX);
+                let startZ = Math.round(mZ);
+                let targetX = Math.round(pX);
+                let targetZ = Math.round(pZ);
+                
+                if (startX === targetX && startZ === targetZ) return null; 
+
+                let queue = [{x: startX, z: startZ}];
+                let cameFrom = new Map();
+                let visited = new Set();
+                let key = (x,z) => `${x},${z}`;
+                
+                visited.add(key(startX, startZ));
+                let found = false;
+                
+                while(queue.length > 0) {
+                    let curr = queue.shift();
+                    if (curr.x === targetX && curr.z === targetZ) {
+                        found = true; break;
+                    }
+                    let dirs = [[0,1], [1,0], [0,-1], [-1,0]];
+                    for (let d of dirs) {
+                        let nx = curr.x + d[0]; let nz = curr.z + d[1];
+                        if (nx >= 0 && nx < gridCols && nz >= 0 && nz < gridRows) {
+                            if (mazeGrid[nz][nx] !== 1 && !visited.has(key(nx,nz))) {
+                                visited.add(key(nx,nz));
+                                cameFrom.set(key(nx,nz), curr);
+                                queue.push({x: nx, z: nz});
+                            }
+                        }
+                    }
+                }
+                
+                if (!found) return null;
+                
+                let curr = {x: targetX, z: targetZ};
+                let path = [];
+                while(curr.x !== startX || curr.z !== startZ) {
+                    path.push(curr);
+                    curr = cameFrom.get(key(curr.x, curr.z));
+                }
+                return path[path.length - 1]; 
+            }
+
+            for (let z = 0; z < mazeGrid.length; z++) {
+                for (let x = 0; x < mazeGrid[z].length; x++) {
+                    let type = mazeGrid[z][x];
+                    addBlock(x, 0, z, matFloor); 
+                    addBlock(x, 4, z, matWall); 
+
+                    if (type === 1) {
+                        addBlock(x, 1, z, matWall);
+                        addBlock(x, 2, z, matWall);
+                        addBlock(x, 3, z, matWall);
+                    } else if (type === 3) {
+                        camera.position.set(x, 1.5, z);
+                    } else if (type === 2) {
+                        const portalMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
+                        exitPortal = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), portalMat);
+                        exitPortal.position.set(x, 1.5, z);
+                        
+                        const portalLight = new THREE.PointLight(0xffdd00, 2, 5);
+                        portalLight.position.set(x, 1.5, z);
+                        scene.add(portalLight);
+                        scene.add(exitPortal);
+                    } 
+                    else if (type === 4) {
+                        let enemyGroup = new THREE.Group();
+                        enemyGroup.position.set(x, 0.5, z); 
+                        
+                        // MENAMBAHKAN NYAWA PADA MONSTER (3 HP)
+                        enemyGroup.userData = { health: 3 };
+                        
+                        const fallbackMat = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+                        const fallbackMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.5, 0.7), fallbackMat);
+                        fallbackMesh.position.set(0, 0.75, 0); 
+                        fallbackMesh.name = "fallbackMonster";
+                        enemyGroup.add(fallbackMesh);
+                        
+                        const enemyLight = new THREE.PointLight(0xff0000, 2, 8);
+                        enemyLight.position.set(0, 1.0, 0);
+                        enemyGroup.add(enemyLight);
+                        scene.add(enemyGroup);
+                        
+                        enemies.push(enemyGroup);
+                    }
+                    else if (type === 5) {
+                        const weaponMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
+                        let weaponPickup = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), weaponMat);
+                        weaponPickup.position.set(x, 1.0, z); 
+                        
+                        const weaponLight = new THREE.PointLight(0x00ffff, 1.5, 4);
+                        weaponPickup.add(weaponLight); 
+                        
+                        scene.add(weaponPickup);
+                        weaponPickups.push(weaponPickup);
+                    }
+                }
+            }
+
+            const gltfLoader = new THREE.GLTFLoader();
+            gltfLoader.load('../models/monster.glb', (gltf) => {
+                enemies.forEach(enemyGroup => {
+                    let monsterModel = gltf.scene.clone(); 
+                    monsterModel.scale.set(0.01, 0.01, 0.01); 
+                    monsterModel.position.set(0, 0.6, 0); 
+                    
+                    const fallback = enemyGroup.getObjectByName("fallbackMonster");
+                    if (fallback) enemyGroup.remove(fallback);
+                    
+                    enemyGroup.add(monsterModel);
+                });
+            }, undefined, (err) => {
+                console.log("Menggunakan wujud kotak merah sementara.");
+            });
+
+            const minimapCanvas = document.getElementById('minimap');
+            const mmCtx = minimapCanvas.getContext('2d');
+            const mmSize = 150; 
+            const cellSize = mmSize / gridCols; 
+
+            function drawMinimap(playerX, playerZ) {
+                mmCtx.clearRect(0, 0, mmSize, mmSize);
+                for (let z = 0; z < gridRows; z++) {
+                    for (let x = 0; x < gridCols; x++) {
+                        if (mazeGrid[z][x] === 1) {
+                            mmCtx.fillStyle = '#636e72'; 
+                            mmCtx.fillRect(x * cellSize, z * cellSize, cellSize, cellSize);
+                        } else if (mazeGrid[z][x] === 2) {
+                            mmCtx.fillStyle = '#f1c40f'; 
+                            mmCtx.fillRect(x * cellSize, z * cellSize, cellSize, cellSize);
+                        }
+                    }
+                }
+
+                if (!isGameOver) {
+                    weaponPickups.forEach(wp => {
+                        mmCtx.fillStyle = '#00ffff';
+                        mmCtx.fillRect((wp.position.x * cellSize) - (cellSize*0.2), (wp.position.z * cellSize) - (cellSize*0.2), cellSize*0.4, cellSize*0.4);
+                    });
+
+                    enemies.forEach(enemy => {
+                        mmCtx.fillStyle = '#9b59b6';
+                        mmCtx.beginPath();
+                        mmCtx.arc(enemy.position.x * cellSize, enemy.position.z * cellSize, cellSize * 0.4, 0, Math.PI * 2);
+                        mmCtx.fill();
+                    });
+                }
+
+                mmCtx.fillStyle = '#e84118'; 
+                mmCtx.beginPath();
+                mmCtx.arc(playerX * cellSize, playerZ * cellSize, cellSize * 0.4, 0, Math.PI * 2);
+                mmCtx.fill();
+                mmCtx.strokeStyle = '#ffffff';
+                mmCtx.lineWidth = 1;
+                mmCtx.stroke();
+            }
+            
+            const controls = new THREE.PointerLockControls(camera, document.body);
+            const blockerDiv = document.getElementById('blocker');
+            const startBtn = document.getElementById('play-btn');
+            const winScreen = document.getElementById('win-screen');
+            let isGameOver = false;
+
+            let selectedLevel = currentLevel;
+            const levelDisplay = document.getElementById('level-display');
+            const prevBtn = document.getElementById('prev-level');
+            const nextBtn = document.getElementById('next-level');
+
+            function updateUI() {
+                levelDisplay.innerText = "Level " + selectedLevel;
+                if (selectedLevel <= 1) prevBtn.classList.add("btn-disabled");
+                else prevBtn.classList.remove("btn-disabled");
+
+                if (selectedLevel >= MAX_LEVEL) nextBtn.classList.add("btn-disabled");
+                else nextBtn.classList.remove("btn-disabled");
+
+                if (selectedLevel !== currentLevel) {
+                    startBtn.innerText = "Muat Level " + selectedLevel;
+                    startBtn.style.color = "#ffdd00"; 
+                } else {
+                    startBtn.innerText = "Mulai Petualangan";
+                    startBtn.style.color = "#ffffff";
+                }
+            }
+
+            updateUI();
+
+            prevBtn.addEventListener('click', () => {
+                if (selectedLevel > 1) { selectedLevel--; updateUI(); }
+            });
+            nextBtn.addEventListener('click', () => {
+                if (selectedLevel < MAX_LEVEL) { selectedLevel++; updateUI(); }
+            });
+
+            startBtn.addEventListener('click', () => { 
+                if (selectedLevel !== currentLevel) {
+                    window.location.href = '?level=' + selectedLevel;
+                    return;
+                }
+                if (isMobile) {
+                    blockerDiv.style.display = 'none';
+                    document.getElementById('mobile-ui').style.display = 'block';
+                    controls.isLocked = true; 
+                    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+                } else { controls.lock(); }
+                minimapCanvas.style.display = 'block';
+            });
+
+            controls.addEventListener('lock', () => { 
+                blockerDiv.style.display = 'none'; minimapCanvas.style.display = 'block'; 
+            });
+            controls.addEventListener('unlock', () => { 
+                if (!isGameOver && !isMobile) { blockerDiv.style.display = 'flex'; minimapCanvas.style.display = 'none'; }
+            });
+            
+            scene.add(controls.getObject());
+            
+            function shootWeapon() {
+                if (!hasWeapon || ammo <= 0) return;
+                
+                ammo--;
+                updateAmmoUI();
+                
+                let bulletMat = new THREE.MeshBasicMaterial({color: 0xffff00});
+                let bullet = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), bulletMat);
+                bullet.position.copy(camera.position); 
+                
+                let dir = new THREE.Vector3();
+                camera.getWorldDirection(dir);
+                bullet.velocity = dir.multiplyScalar(15); 
+                
+                bullets.push(bullet);
+                scene.add(bullet);
+            }
+
+            let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+            const PLAYER_RADIUS = 0.35;
+            const WALK_SPEED = 4.0;
+
+            if (isMobile) {
+                const joyBase = document.getElementById('joystick-base');
+                const joyStick = document.getElementById('joystick-stick');
+                let joyActive = false;
+
+                function updateJoystick(touch) {
+                    const rect = joyBase.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    let dx = touch.clientX - centerX;
+                    let dy = touch.clientY - centerY;
+                    const maxDist = rect.width / 2;
+                    const dist = Math.min(Math.sqrt(dx*dx + dy*dy), maxDist);
+                    const angle = Math.atan2(dy, dx);
+
+                    dx = Math.cos(angle) * dist;
+                    dy = Math.sin(angle) * dist;
+                    joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                    moveForward = dy < -10; moveBackward = dy > 10;
+                    moveRight = dx > 10; moveLeft = dx < -10;
+                }
+
+                joyBase.addEventListener('touchstart', (e) => { e.preventDefault(); joyActive = true; updateJoystick(e.touches[0]); }, {passive: false});
+                joyBase.addEventListener('touchmove', (e) => { e.preventDefault(); if(joyActive) updateJoystick(e.touches[0]); }, {passive: false});
+                joyBase.addEventListener('touchend', (e) => { e.preventDefault(); joyActive = false; joyStick.style.transform = `translate(0px, 0px)`; moveForward = moveBackward = moveLeft = moveRight = false; }, {passive: false});
+
+                const btnShoot = document.getElementById('m-shoot');
+                btnShoot.addEventListener('touchstart', (e) => { 
+                    e.preventDefault(); 
+                    if(controls.isLocked && !isGameOver) shootWeapon(); 
+                }, {passive: false});
+
+                let touchStartX = 0, touchStartY = 0;
+                let lastTouchX = 0, lastTouchY = 0;
+                const cameraObj = controls.getObject();
+
+                document.addEventListener('touchstart', (e) => {
+                    if (e.target.closest('#mobile-ui') || e.target.closest('#mc-menu') || e.target.closest('#win-screen')) return;
+                    e.preventDefault();
+                    touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+                    lastTouchX = touchStartX; lastTouchY = touchStartY;
+                }, {passive: false});
+
+                document.addEventListener('touchmove', (e) => {
+                    if (e.target.closest('#mobile-ui') || e.target.closest('#mc-menu')) return;
+                    e.preventDefault();
+                    const touchX = e.touches[0].clientX; const touchY = e.touches[0].clientY;
+                    const movementX = touchX - lastTouchX; const movementY = touchY - lastTouchY;
+                    cameraObj.rotation.y -= movementX * 0.005;
+                    cameraObj.rotation.x -= movementY * 0.005;
+                    cameraObj.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraObj.rotation.x));
+                    lastTouchX = touchX; lastTouchY = touchY;
+                }, {passive: false});
+            }
+
+            document.addEventListener('mousedown', (e) => {
+                if (e.target.closest('#mc-menu') || e.target.closest('#win-screen') || e.target.closest('#mobile-ui')) return;
+                if (!controls.isLocked || isGameOver) return;
+                if (e.button === 0) { 
+                    shootWeapon();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (!controls.isLocked || isGameOver) return;
+                switch (e.code) {
+                    case 'KeyW': moveForward = true; break; case 'KeyS': moveBackward = true; break;
+                    case 'KeyA': moveLeft = true; break; case 'KeyD': moveRight = true; break;
+                    case 'Space': shootWeapon(); break; 
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                switch (e.code) {
+                    case 'KeyW': moveForward = false; break; case 'KeyS': moveBackward = false; break;
+                    case 'KeyA': moveLeft = false; break; case 'KeyD': moveRight = false; break;
+                }
+            });
+
+            function isCollidingWithBlocks(x, z, customRadius = PLAYER_RADIUS) {
+                const minBx = Math.floor(x - customRadius - 0.5), maxBx = Math.floor(x + customRadius + 0.5);
+                const minBz = Math.floor(z - customRadius - 0.5), maxBz = Math.floor(z + customRadius + 0.5);
+                
+                for (let bx = minBx; bx <= maxBx; bx++) {
+                    for (let bz = minBz; bz <= maxBz; bz++) {
+                        if (blockMap.has(`${bx},1,${bz}`) || blockMap.has(`${bx},2,${bz}`)) {
+                            if (x + customRadius > bx-0.5 && x - customRadius < bx+0.5 && 
+                                z + customRadius > bz-0.5 && z - customRadius < bz+0.5) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            
+            let lastTime = performance.now();
+            function animateGame() {
+                requestAnimationFrame(animateGame);
+                if (isGameOver) return;
+
+                const now = performance.now();
+                let deltaTime = Math.min(0.033, (now - lastTime) / 1000);
+                lastTime = now;
+                
+                if(exitPortal) {
+                    exitPortal.rotation.x += 1 * deltaTime;
+                    exitPortal.rotation.y += 2 * deltaTime;
+                }
+
+                const playerObj = controls.getObject();
+                let pos = playerObj.position.clone();
+                playerLight.position.copy(pos);
+
+                for (let i = weaponPickups.length - 1; i >= 0; i--) {
+                    let wp = weaponPickups[i];
+                    wp.rotation.x += 2 * deltaTime;
+                    wp.rotation.y += 3 * deltaTime;
+                    
+                    if (pos.distanceTo(wp.position) < 1.0) {
+                        hasWeapon = true;
+                        ammo += 15; 
+                        scene.remove(wp);
+                        weaponPickups.splice(i, 1);
+                        updateAmmoUI();
+                        
+                        document.getElementById('ammo-display').style.display = 'block';
+                        if (isMobile) document.getElementById('m-shoot').style.display = 'flex';
+                    }
+                }
+
+                // FISIKA PELURU DAN DETEKSI TABRAKAN PELURU KE MONSTER
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    let b = bullets[i];
+                    b.position.addScaledVector(b.velocity, deltaTime);
+                    
+                    if (isCollidingWithBlocks(b.position.x, b.position.z, 0.1)) {
+                        scene.remove(b);
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                    
+                    let hitEnemy = false;
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        let enemy = enemies[j];
+                        let dx = b.position.x - enemy.position.x;
+                        let dz = b.position.z - enemy.position.z;
+                        let dist2D = Math.sqrt(dx*dx + dz*dz);
+                        
+                        if (dist2D < 0.5) { 
+                            hitEnemy = true;
+                            
+                            // Hapus peluru
+                            scene.remove(b);
+                            bullets.splice(i, 1);
+                            
+                            // Kurangi Nyawa Monster
+                            enemy.userData.health -= 1;
+                            
+                            if (enemy.userData.health <= 0) {
+                                // Monster Mati
+                                scene.remove(enemy);
+                                enemies.splice(j, 1);
+                            } else {
+                                // Efek Terpukul (Knockback ke belakang)
+                                enemy.position.x -= b.velocity.x * 0.03;
+                                enemy.position.z -= b.velocity.z * 0.03;
+                            }
+                            break;
+                        }
+                    }
+                    if (hitEnemy) continue;
+                }
+
+                if (!controls.isLocked && !isMobile) return;
+                
+                let moveZ = 0; let moveX = 0;
+                if (moveForward) moveZ += 1; if (moveBackward) moveZ -= 1;
+                if (moveLeft) moveX -= 1; if (moveRight) moveX += 1;
+                
+                const cameraDir = camera.getWorldDirection(new THREE.Vector3());
+                const forward = new THREE.Vector3(cameraDir.x, 0, cameraDir.z).normalize();
+                const right = new THREE.Vector3(-forward.z, 0, forward.x);
+                
+                let targetX = pos.x + (moveX * right.x + moveZ * forward.x) * WALK_SPEED * deltaTime;
+                if (!isCollidingWithBlocks(targetX, pos.z)) pos.x = targetX;
+                
+                let targetZ = pos.z + (moveX * right.z + moveZ * forward.z) * WALK_SPEED * deltaTime;
+                if (!isCollidingWithBlocks(pos.x, targetZ)) pos.z = targetZ;
+                
+                playerObj.position.copy(pos);
+
+                enemies.forEach(enemyGroup => {
+                    let ePos = enemyGroup.position;
+                    let dir = new THREE.Vector3();
+                    
+                    let nextCell = getNextMove(ePos.x, ePos.z, pos.x, pos.z);
+                    
+                    if (nextCell) {
+                        let targetPos = new THREE.Vector3(nextCell.x, ePos.y, nextCell.z);
+                        dir.subVectors(targetPos, ePos);
+                        
+                        if (dir.length() < 0.1) {
+                            dir.subVectors(pos, ePos);
+                        }
+                    } else {
+                        dir.subVectors(pos, ePos);
+                    }
+                    
+                    dir.y = 0; 
+                    if (dir.lengthSq() > 0) dir.normalize();
+                    
+                    if (dir.x !== 0 || dir.z !== 0) {
+                        enemyGroup.lookAt(ePos.x + dir.x, ePos.y, ePos.z + dir.z);
+                    }
+                    
+                    let enemySpeed = 2.8; 
+                    let nextEX = ePos.x + dir.x * enemySpeed * deltaTime;
+                    let nextEZ = ePos.z + dir.z * enemySpeed * deltaTime;
+                    
+                    let monsterRadius = 0.35;
+                    if (!isCollidingWithBlocks(nextEX, ePos.z, monsterRadius)) ePos.x = nextEX;
+                    if (!isCollidingWithBlocks(ePos.x, nextEZ, monsterRadius)) ePos.z = nextEZ;
+
+                    let dx = pos.x - ePos.x;
+                    let dz = pos.z - ePos.z;
+                    let distance2D = Math.sqrt(dx*dx + dz*dz);
+
+                    if (distance2D < 0.55) {
+                        isGameOver = true;
+                        document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+                        if (document.exitPointerLock) document.exitPointerLock();
+                        
+                        document.getElementById('mobile-ui').style.display = 'none';
+                        document.getElementById('crosshair').style.display = 'none';
+                        minimapCanvas.style.display = 'none'; 
+                        
+                        winScreen.style.backgroundColor = "rgba(180, 0, 0, 0.85)";
+                        document.getElementById('win-title').innerText = "TERTANGKAP!";
+                        document.getElementById('win-title').style.color = "#ff5555";
+                        document.getElementById('win-title').style.textShadow = "6px 6px 0 #000";
+                        document.getElementById('win-desc').innerText = "Monster berhasil menangkap Anda!";
+                        document.getElementById('win-desc').style.textShadow = "none";
+                        
+                        const nextBtn = document.getElementById('next-btn');
+                        nextBtn.innerText = "Coba Lagi";
+                        nextBtn.onclick = () => { window.location.reload(); };
+
+                        winScreen.style.display = 'flex';
+                    }
+                });
+
+                if (exitPortal && !isGameOver) {
+                    let dist = pos.distanceTo(exitPortal.position);
+                    if (dist < 1.0) {
+                        isGameOver = true;
+                        document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+                        if (document.exitPointerLock) document.exitPointerLock();
+                        
+                        document.getElementById('mobile-ui').style.display = 'none';
+                        document.getElementById('crosshair').style.display = 'none';
+                        minimapCanvas.style.display = 'none'; 
+                        
+                        const nextBtn = document.getElementById('next-btn');
+                        
+                        if (window.nextLevel && window.nextLevel <= MAX_LEVEL) {
+                            document.getElementById('win-title').innerText = "LEVEL " + currentLevel + " CLEARED!";
+                            document.getElementById('win-desc').innerText = "Siap untuk level selanjutnya?";
+                            nextBtn.innerText = "Lanjut Level " + window.nextLevel;
+                            nextBtn.onclick = () => { window.location.href = '?level=' + window.nextLevel; };
+                        } else {
+                            document.getElementById('win-title').innerText = "YOU WIN!";
+                            document.getElementById('win-desc').innerText = "Selamat! Anda telah tamat!";
+                            nextBtn.innerText = "Kembali ke Menu Utama";
+                            nextBtn.onclick = () => { window.location.href = 'index.html'; };
+                        }
+
+                        winScreen.style.display = 'flex';
+                    }
+                }
+
+                drawMinimap(pos.x, pos.z);
+                renderer.render(scene, camera);
+            }
+            animateGame();
+        } 
+    </script>
+</body>
+</html>

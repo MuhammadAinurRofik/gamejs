@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Mario 64 Style - Enemies & Coins</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #5C94FC; touch-action: none; user-select: none; font-family: 'VT323', monospace; }
+        canvas { display: block; }
+        
+        #ui-layer { position: absolute; top: 10px; left: 10px; color: white; font-size: 30px; text-shadow: 2px 2px 0 #000; z-index: 10; pointer-events: none; }
+        #coin-display { position: absolute; top: 50px; left: 10px; color: #f1c40f; font-size: 35px; text-shadow: 2px 2px 0 #000; z-index: 10; pointer-events: none; }
+        
+        #blocker { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 20; backdrop-filter: blur(5px); flex-direction: column; }
+        #mc-menu { display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .mc-logo { font-size: 80px; color: #f1c40f; text-shadow: 6px 6px 0 #d35400; margin-bottom: 20px; text-align: center; }
+        .mc-btn { width: 300px; height: 50px; background: #2ecc71; border: 4px solid #fff; border-radius: 10px; color: #FFF; font-size: 30px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.1s; text-decoration: none; text-shadow: 2px 2px 0 #27ae60; }
+        .mc-btn:hover { background: #27ae60; transform: scale(1.05); }
+        .mc-btn:active { transform: scale(0.95); }
+
+        .level-selector { display: flex; gap: 10px; width: 300px; justify-content: space-between; }
+        .level-selector .mc-btn { width: auto; font-size: 32px; padding: 0 15px; }
+        .level-selector #level-display { flex: 1; cursor: default; pointer-events: none; background: #555; border-color: #777; text-shadow: none;}
+        .btn-disabled { background: #444 !important; border-color: #555 !important; color: #777 !important; }
+
+        #win-screen { position: absolute; width: 100%; height: 100%; background-color: rgba(241, 196, 15, 0.85); display: none; justify-content: center; align-items: center; flex-direction: column; color: white; z-index: 30; backdrop-filter: blur(5px); }
+        #win-screen h1 { font-size: 100px; margin: 0; text-shadow: 6px 6px 0 #d35400; color: #fff; }
+        #win-screen p { font-size: 30px; margin-bottom: 30px; text-align: center; text-shadow: 2px 2px 0 #d35400;}
+
+        #controls-info { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px 10px; border-radius: 8px; font-size: 18px; pointer-events: none; z-index: 15; }
+
+        #mobile-ui { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #joystick-base { position: absolute; bottom: 40px; left: 40px; width: 130px; height: 130px; background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; pointer-events: auto; }
+        #joystick-stick { position: absolute; top: 35px; left: 35px; width: 60px; height: 60px; background: rgba(255,255,255,0.4); border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .action-btns { position: absolute; bottom: 40px; right: 40px; pointer-events: auto; }
+        .btn-circle { width: 80px; height: 80px; background: rgba(231, 76, 60, 0.7); border: 4px solid rgba(255,255,255,0.8); border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-size: 30px; cursor: pointer; box-shadow: 0 5px 0 #c0392b; }
+        
+        @media (max-width: 768px) { #mobile-ui { display: block; } #controls-info { display: none; } }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <div id="world-title">WORLD X-X</div>
+    </div>
+    <div id="coin-display">KOIN: 0</div>
+    
+    <div id="controls-info">Geser Mouse | WASD untuk Jalan | SPASI untuk Lompat</div>
+    
+    <div id="blocker">
+        <div id="mc-menu">
+            <div class="mc-logo">SUPER CLONE 3D</div>
+            
+            <div class="level-selector">
+                <div class="mc-btn" id="prev-level">&lt;</div>
+                <div class="mc-btn" id="level-display">Level 1</div>
+                <div class="mc-btn" id="next-level">&gt;</div>
+            </div>
+
+            <div class="mc-btn" id="play-btn">Mulai Bermain</div>
+            <a href="../gamelist.html" class="mc-btn" style="background: #e74c3c; border-color: #c0392b; text-shadow: 2px 2px 0 #c0392b;">Kembali ke Menu</a>
+        </div>
+    </div>
+
+    <div id="win-screen">
+        <h1 id="win-title">COURSE CLEAR!</h1>
+        <p id="win-desc">Anda berhasil mendapatkan Bintang!</p>
+        <div class="mc-btn" id="next-btn">Lanjut Level Selanjutnya</div>
+    </div>
+
+    <div id="mobile-ui">
+        <div id="joystick-base"><div id="joystick-stick"></div></div>
+        <div class="action-btns"><div class="btn-circle" id="m-jump">▲</div></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.0/umd/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    
+    <script>
+        const MAX_LEVEL = 2; 
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentLevel = parseInt(urlParams.get('level')) || 1; 
+        if (currentLevel > MAX_LEVEL) currentLevel = MAX_LEVEL;
+        if (currentLevel < 1) currentLevel = 1;
+
+        const script = document.createElement('script');
+        script.src = 'level' + currentLevel + '.js';
+        script.onload = () => { initGame(); };
+        script.onerror = () => {
+            alert('Tamat! Level ' + currentLevel + ' belum dibuat.');
+            window.location.href = '../gamelist.html';
+        };
+        document.head.appendChild(script);
+
+        function initGame() {
+            const levelData = window.levelData;
+            document.getElementById('world-title').innerText = levelData.title;
+
+            let score = 0; // Variabel Skor
+
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x5C94FC); 
+            scene.fog = new THREE.Fog(0x5C94FC, 20, 80);
+
+            const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true; 
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true; 
+            dirLight.shadow.camera.left = -40; dirLight.shadow.camera.right = 40;
+            dirLight.shadow.camera.top = 40; dirLight.shadow.camera.bottom = -40;
+            dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // ARRAY PENYIMPANAN OBJEK GAME
+            const platforms = []; 
+            const coins = [];
+            const enemies = [];
+            const lavas = [];
+            let finishStar = null;
+
+            // FUNGSI BUILDER
+            function createGround(x, y, z, width, depth) {
+                const height = 4; 
+                const groundGroup = new THREE.Group();
+                groundGroup.position.set(x, y - height/2, z);
+                const dirt = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+                dirt.castShadow = true; dirt.receiveShadow = true;
+                groundGroup.add(dirt);
+                const grass = new THREE.Mesh(new THREE.BoxGeometry(width + 0.2, 0.5, depth + 0.2), new THREE.MeshLambertMaterial({ color: 0x2ecc71 }));
+                grass.position.y = height/2; grass.receiveShadow = true;
+                groundGroup.add(grass);
+                scene.add(groundGroup);
+                platforms.push(groundGroup); 
+            }
+
+            function createBlock(x, y, z, isQuestionBlock) {
+                const size = 1.5;
+                const color = isQuestionBlock ? 0xf1c40f : 0xcc4422; 
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshLambertMaterial({ color: color }));
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                scene.add(mesh);
+                platforms.push(mesh);
+            }
+
+            function createPipe(x, y, z, height) {
+                const pipeGroup = new THREE.Group();
+                pipeGroup.position.set(x, y, z);
+                const matPipe = new THREE.MeshLambertMaterial({ color: 0x00aa00 });
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, height, 16), matPipe);
+                body.position.y = height / 2; body.castShadow = true; body.receiveShadow = true;
+                pipeGroup.add(body);
+                const lip = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 0.8, 16), matPipe);
+                lip.position.y = height + 0.4; lip.castShadow = true; lip.receiveShadow = true;
+                pipeGroup.add(lip);
+                const hitbox = new THREE.Mesh(new THREE.BoxGeometry(3.4, height + 0.8, 3.4), new THREE.MeshBasicMaterial({visible: false}));
+                hitbox.position.y = (height + 0.8) / 2;
+                pipeGroup.add(hitbox);
+                scene.add(pipeGroup);
+                platforms.push(hitbox); 
+            }
+
+            function createCloud(x, y, z) {
+                const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+                const cloud = new THREE.Group();
+                cloud.position.set(x, y, z);
+                const s1 = new THREE.Mesh(new THREE.SphereGeometry(2, 16, 16), cloudMat);
+                const s2 = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 16), cloudMat); s2.position.set(2, 0, 0);
+                const s3 = new THREE.Mesh(new THREE.SphereGeometry(2, 16, 16), cloudMat); s3.position.set(4, 0, 0);
+                cloud.add(s1); cloud.add(s2); cloud.add(s3);
+                scene.add(cloud);
+            }
+
+            // BUAT KOIN
+            function createCoin(x, y, z) {
+                const coin = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.5, 0.5, 0.15, 16), 
+                    new THREE.MeshLambertMaterial({ color: 0xFFD700 })
+                );
+                coin.rotation.x = Math.PI / 2; // Berdiri tegak
+                coin.position.set(x, y, z);
+                scene.add(coin);
+                coins.push(coin);
+            }
+
+            // BUAT LAVA
+            function createLava(x, y, z, w, d) {
+                const lava = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, 2, d), 
+                    new THREE.MeshLambertMaterial({ color: 0xff3300, emissive: 0xaa0000 })
+                );
+                lava.position.set(x, y, z);
+                scene.add(lava);
+                lavas.push(lava);
+            }
+
+            // BUAT MUSUH GOOMBA KOTAK
+            function createEnemy(x, y, z, dist, speed) {
+                const enemyGroup = new THREE.Group();
+                enemyGroup.position.set(x, y, z);
+                
+                // Badan
+                const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), new THREE.MeshLambertMaterial({ color: 0x8B4513 }));
+                body.position.y = 0.6;
+                body.castShadow = true;
+                enemyGroup.add(body);
+
+                // Mata (Agar tahu hadap mana)
+                const eyeMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+                const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), eyeMat); eyeL.position.set(-0.25, 0.8, -0.61);
+                const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.1), eyeMat); eyeR.position.set(0.25, 0.8, -0.61);
+                enemyGroup.add(eyeL); enemyGroup.add(eyeR);
+
+                // Data pergerakan
+                enemyGroup.userData = { startX: x, dist: dist, speed: speed, dir: 1 };
+                
+                scene.add(enemyGroup);
+                enemies.push(enemyGroup);
+            }
+
+            // MEMBACA DATA LEVEL
+            levelData.objects.forEach(obj => {
+                if (obj.type === 'ground') createGround(obj.x, obj.y, obj.z, obj.w, obj.d);
+                if (obj.type === 'block') createBlock(obj.x, obj.y, obj.z, obj.isQuestion);
+                if (obj.type === 'pipe') createPipe(obj.x, obj.y, obj.z, obj.h);
+                if (obj.type === 'cloud') createCloud(obj.x, obj.y, obj.z);
+                if (obj.type === 'coin') createCoin(obj.x, obj.y, obj.z);
+                if (obj.type === 'lava') createLava(obj.x, obj.y, obj.z, obj.w, obj.d);
+                if (obj.type === 'enemy') createEnemy(obj.x, obj.y, obj.z, obj.dist, obj.speed);
+                if (obj.type === 'finish') {
+                    finishStar = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), new THREE.MeshLambertMaterial({color: 0xFFD700}));
+                    finishStar.position.set(obj.x, obj.y, obj.z);
+                    const starLight = new THREE.PointLight(0xFFD700, 2, 10);
+                    finishStar.add(starLight);
+                    scene.add(finishStar);
+                }
+            });
+            
+            // KARAKTER FBX
+            const player = new THREE.Group();
+            player.position.set(levelData.spawn.x, levelData.spawn.y, levelData.spawn.z); 
+
+            let mixer; 
+            let idleAction, runAction, jumpAction; 
+            let currentAction; 
+            const clock = new THREE.Clock(); 
+
+            const fallbackPlayer = new THREE.Group();
+            fallbackPlayer.name = "fallbackPlayer";
+            const pants = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), new THREE.MeshLambertMaterial({ color: 0x0000ff }));
+            pants.position.y = 0.4; pants.castShadow = true; fallbackPlayer.add(pants);
+            const shirt = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xff0000 }));
+            shirt.position.y = 1.3; shirt.castShadow = true; fallbackPlayer.add(shirt);
+            player.add(fallbackPlayer);
+            scene.add(player);
+
+            const fbxLoader = new THREE.FBXLoader();
+
+            function prepClip(clip) {
+                if (!clip) return clip;
+                clip.tracks.forEach(track => { track.name = track.name.replace(/mixamorig\d*/g, 'mixamorig'); });
+                return clip;
+            }
+
+            fbxLoader.load('../models/karakter.fbx', (model) => {
+                model.scale.set(0.01, 0.01, 0.01);
+                model.position.set(0, 0, 0);
+                model.rotation.y = Math.PI; 
+
+                model.traverse(function (child) {
+                    if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+                });
+
+                mixer = new THREE.AnimationMixer(model);
+
+                fbxLoader.load('../models/diam.fbx', (animObj) => {
+                    if (animObj.animations.length > 0) {
+                        let idleClip = prepClip(animObj.animations[0]);
+                        idleAction = mixer.clipAction(idleClip);
+                        idleAction.play();
+                        currentAction = idleAction;
+                    }
+                });
+
+                fbxLoader.load('../models/lari.fbx', (animObj) => {
+                    if (animObj.animations.length > 0) {
+                        let runClip = prepClip(animObj.animations[0]);
+                        runAction = mixer.clipAction(runClip);
+                    }
+                });
+
+                fbxLoader.load('../models/lompat.fbx', (animObj) => {
+                    if (animObj.animations.length > 0) {
+                        let jumpClip = prepClip(animObj.animations[0]);
+                        jumpAction = mixer.clipAction(jumpClip);
+                        jumpAction.setLoop(THREE.LoopOnce); 
+                        jumpAction.clampWhenFinished = true; 
+                    }
+                });
+
+                const fallback = player.getObjectByName("fallbackPlayer");
+                if (fallback) player.remove(fallback);
+                player.add(model);
+            });
+
+            function fadeToAction(action, duration) {
+                if (!action || currentAction === action) return; 
+                let previousAction = currentAction;
+                currentAction = action;
+                if (previousAction) previousAction.fadeOut(duration);
+                let speed = (action === jumpAction) ? 1.5 : 1.0;
+                currentAction.reset().setEffectiveTimeScale(speed).setEffectiveWeight(1).fadeIn(duration).play();
+            }
+
+            let camYaw = 0;   
+            let camPitch = 0.2; 
+            const CAM_DIST = 10;
+            let isLocked = false;
+            let isGameWon = false;
+
+            const blocker = document.getElementById('blocker');
+            const playBtn = document.getElementById('play-btn');
+            const winScreen = document.getElementById('win-screen');
+            let selectedLevel = currentLevel;
+            const levelDisplay = document.getElementById('level-display');
+            const prevBtn = document.getElementById('prev-level');
+            const nextBtn = document.getElementById('next-level');
+
+            function updateUI() {
+                levelDisplay.innerText = "Level " + selectedLevel;
+                if (selectedLevel <= 1) prevBtn.classList.add("btn-disabled"); else prevBtn.classList.remove("btn-disabled");
+                if (selectedLevel >= MAX_LEVEL) nextBtn.classList.add("btn-disabled"); else nextBtn.classList.remove("btn-disabled");
+                if (selectedLevel !== currentLevel) {
+                    playBtn.innerText = "Muat Level " + selectedLevel; playBtn.style.color = "#f1c40f"; 
+                } else {
+                    playBtn.innerText = "Mulai Bermain"; playBtn.style.color = "#ffffff";
+                }
+            }
+            updateUI();
+
+            prevBtn.addEventListener('click', () => { if (selectedLevel > 1) { selectedLevel--; updateUI(); } });
+            nextBtn.addEventListener('click', () => { if (selectedLevel < MAX_LEVEL) { selectedLevel++; updateUI(); } });
+
+            playBtn.addEventListener('click', () => {
+                if (selectedLevel !== currentLevel) { window.location.href = '?level=' + selectedLevel; return; }
+                if (!isMobile) { document.body.requestPointerLock(); } 
+                else { blocker.style.display = 'none'; document.getElementById('mobile-ui').style.display = 'block'; isLocked = true; }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) { isLocked = true; blocker.style.display = 'none'; } 
+                else { if(!isGameWon) { isLocked = false; blocker.style.display = 'flex'; } }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isLocked && !isMobile) {
+                    camYaw -= e.movementX * 0.005;
+                    camPitch += e.movementY * 0.005;
+                    camPitch = Math.max(-0.2, Math.min(1.2, camPitch));
+                }
+            });
+
+            if (isMobile) {
+                let lastTouchX = 0, lastTouchY = 0;
+                document.addEventListener('touchstart', (e) => {
+                    if (e.target.closest('#mobile-ui') || e.target.closest('#mc-menu') || e.target.closest('#win-screen')) return;
+                    lastTouchX = e.touches[0].clientX; lastTouchY = e.touches[0].clientY;
+                }, {passive: false});
+
+                document.addEventListener('touchmove', (e) => {
+                    if (e.target.closest('#mobile-ui') || e.target.closest('#mc-menu') || e.target.closest('#win-screen')) return;
+                    let touchX = e.touches[0].clientX; let touchY = e.touches[0].clientY;
+                    if (touchX > window.innerWidth / 2) {
+                        camYaw -= (touchX - lastTouchX) * 0.01;
+                        camPitch += (touchY - lastTouchY) * 0.01;
+                        camPitch = Math.max(-0.2, Math.min(1.2, camPitch));
+                    }
+                    lastTouchX = touchX; lastTouchY = touchY;
+                }, {passive: false});
+            }
+
+            let velocityY = 0;
+            const GRAVITY = 0.02;
+            const JUMP_FORCE = 0.45;
+            const MOVE_SPEED = 0.2;
+            let isGrounded = false;
+
+            let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+            
+            document.addEventListener('keydown', (e) => {
+                if (!isLocked) return;
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') moveForward = true;
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveBackward = true;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveLeft = true;
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') moveRight = true;
+                if (e.code === 'Space' && isGrounded) { velocityY = JUMP_FORCE; isGrounded = false; }
+            });
+            document.addEventListener('keyup', (e) => {
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') moveForward = false;
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveBackward = false;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveLeft = false;
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') moveRight = false;
+            });
+
+            if (isMobile) {
+                const joyBase = document.getElementById('joystick-base'); const joyStick = document.getElementById('joystick-stick'); let joyActive = false;
+                function updateJoystick(touch) {
+                    const rect = joyBase.getBoundingClientRect(); const centerX = rect.left + rect.width / 2; const centerY = rect.top + rect.height / 2;
+                    let dx = touch.clientX - centerX; let dy = touch.clientY - centerY;
+                    const maxDist = rect.width / 2; const dist = Math.min(Math.sqrt(dx*dx + dy*dy), maxDist);
+                    const angle = Math.atan2(dy, dx);
+                    dx = Math.cos(angle) * dist; dy = Math.sin(angle) * dist;
+                    joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+                    moveForward = dy < -10; moveBackward = dy > 10; moveRight = dx > 10; moveLeft = dx < -10;
+                }
+                joyBase.addEventListener('touchstart', (e) => { e.preventDefault(); joyActive = true; updateJoystick(e.touches[0]); }, {passive: false});
+                joyBase.addEventListener('touchmove', (e) => { e.preventDefault(); if(joyActive) updateJoystick(e.touches[0]); }, {passive: false});
+                joyBase.addEventListener('touchend', (e) => { e.preventDefault(); joyActive = false; joyStick.style.transform = `translate(0px, 0px)`; moveForward = moveBackward = moveLeft = moveRight = false; }, {passive: false});
+
+                document.getElementById('m-jump').addEventListener('touchstart', (e) => { e.preventDefault(); if (isGrounded && isLocked) { velocityY = JUMP_FORCE; isGrounded = false; } }, {passive: false});
+            }
+
+            // FUNGSI MATI (Respawn)
+            function playerDie() {
+                player.position.set(levelData.spawn.x, levelData.spawn.y, levelData.spawn.z);
+                velocityY = 0;
+                // Jika ingin skor di-reset saat mati, tambahkan kode ini:
+                // score = 0; document.getElementById('coin-display').innerText = "KOIN: " + score;
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                let delta = clock.getDelta();
+                if (mixer) {
+                    mixer.update(delta);
+                    if (!isGrounded && jumpAction) { fadeToAction(jumpAction, 0.2); } 
+                    else if (moveForward || moveBackward || moveLeft || moveRight) { fadeToAction(runAction, 0.2); } 
+                    else { fadeToAction(idleAction, 0.2); }
+                }
+
+                if (finishStar) finishStar.rotation.y += 0.05;
+
+                if (isLocked) {
+                    let oldX = player.position.x;
+                    let oldZ = player.position.z;
+
+                    let moveX = 0, moveZ = 0;
+                    if (moveForward) moveZ -= 1; if (moveBackward) moveZ += 1;
+                    if (moveLeft) moveX -= 1; if (moveRight) moveX += 1;
+
+                    if (moveX !== 0 || moveZ !== 0) {
+                        let moveAngle = camYaw + Math.atan2(moveX, moveZ);
+                        player.position.x += Math.sin(moveAngle) * MOVE_SPEED;
+                        player.position.z += Math.cos(moveAngle) * MOVE_SPEED;
+                        player.rotation.y = moveAngle + Math.PI; 
+                    }
+
+                    velocityY -= GRAVITY;
+                    player.position.y += velocityY;
+
+                    // Buat Hitbox Karakter Utama
+                    let playerBox = new THREE.Box3();
+                    playerBox.setFromCenterAndSize(
+                        new THREE.Vector3(player.position.x, player.position.y + 0.9, player.position.z), 
+                        new THREE.Vector3(1.0, 1.8, 1.0) // Sedikit dirampingkan agar tabrakan akurat
+                    );
+                    
+                    isGrounded = false;
+
+                    // TABRAKAN DENGAN PLATFORM/TEMBOK
+                    for (let pad of platforms) {
+                        pad.updateMatrixWorld();
+                        let padBox = new THREE.Box3().setFromObject(pad);
+                        
+                        if (playerBox.intersectsBox(padBox)) {
+                            if (velocityY < 0 && (player.position.y - velocityY) >= padBox.max.y - 0.5) {
+                                player.position.y = padBox.max.y; 
+                                velocityY = 0; isGrounded = true;
+                            } else if (velocityY > 0 && (player.position.y + 1.8 - velocityY) <= padBox.min.y + 0.5) {
+                                player.position.y = padBox.min.y - 1.8; velocityY = -0.1; 
+                            } else {
+                                player.position.x = oldX; player.position.z = oldZ;
+                            }
+                        }
+                    }
+
+                    // TABRAKAN DENGAN KOIN
+                    for (let i = coins.length - 1; i >= 0; i--) {
+                        let coin = coins[i];
+                        coin.rotation.z += 0.05; // Putar koin
+                        let coinBox = new THREE.Box3().setFromObject(coin);
+                        if (playerBox.intersectsBox(coinBox)) {
+                            scene.remove(coin);
+                            coins.splice(i, 1);
+                            score += 1;
+                            document.getElementById('coin-display').innerText = "KOIN: " + score;
+                        }
+                    }
+
+                    // TABRAKAN DENGAN LAVA
+                    for (let lava of lavas) {
+                        let lavaBox = new THREE.Box3().setFromObject(lava);
+                        if (playerBox.intersectsBox(lavaBox)) {
+                            playerDie();
+                        }
+                    }
+
+                    // LOGIKA MUSUH
+                    for (let i = enemies.length - 1; i >= 0; i--) {
+                        let enemy = enemies[i];
+                        
+                        // Gerakan Patroli Musuh Kiri-Kanan
+                        enemy.position.x += enemy.userData.speed * enemy.userData.dir;
+                        if (Math.abs(enemy.position.x - enemy.userData.startX) > enemy.userData.dist) {
+                            enemy.userData.dir *= -1; // Balik arah
+                            enemy.rotation.y += Math.PI; // Putar badan
+                        }
+
+                        let enemyBox = new THREE.Box3().setFromObject(enemy);
+                        
+                        // Cek Tabrakan Pemain vs Musuh
+                        if (playerBox.intersectsBox(enemyBox)) {
+                            // Jika pemain jatuh dari atas (MENGINJAK)
+                            if (velocityY < 0 && (player.position.y - velocityY) >= enemyBox.max.y - 0.5) {
+                                scene.remove(enemy);
+                                enemies.splice(i, 1); // Hapus musuh
+                                velocityY = JUMP_FORCE; // Pemain memantul!
+                                score += 5; // Bonus Skor
+                                document.getElementById('coin-display').innerText = "KOIN: " + score;
+                            } else {
+                                // Jika tersentuh dari samping
+                                playerDie();
+                            }
+                        }
+                    }
+
+                    // KEMATIAN: Jatuh ke jurang
+                    if (player.position.y < -15) {
+                        playerDie();
+                    }
+
+                    // MENANG
+                    if (finishStar && player.position.distanceTo(finishStar.position) < 2.0) {
+                        isLocked = false;
+                        isGameWon = true;
+                        document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+                        if (document.exitPointerLock) document.exitPointerLock();
+                        
+                        document.getElementById('mobile-ui').style.display = 'none';
+                        const nextBtn = document.getElementById('next-btn');
+                        
+                        if (levelData.nextLevel) {
+                            nextBtn.innerText = "Lanjut Level " + levelData.nextLevel;
+                            nextBtn.onclick = () => { window.location.href = '?level=' + levelData.nextLevel; };
+                        } else {
+                            document.getElementById('win-title').innerText = "GAME TAMAT!";
+                            document.getElementById('win-desc').innerText = "Total Koin Anda: " + score;
+                            nextBtn.innerText = "Kembali ke Menu Utama";
+                            nextBtn.onclick = () => { window.location.href = '../gamelist.html'; };
+                        }
+                        winScreen.style.display = 'flex';
+                    }
+                }
+
+                // KAMERA
+                let targetCamX = player.position.x + CAM_DIST * Math.cos(camPitch) * Math.sin(camYaw);
+                let targetCamY = player.position.y + 1 + CAM_DIST * Math.sin(camPitch);
+                let targetCamZ = player.position.z + CAM_DIST * Math.cos(camPitch) * Math.cos(camYaw);
+
+                camera.position.x += (targetCamX - camera.position.x) * 0.2;
+                camera.position.y += (targetCamY - camera.position.y) * 0.2;
+                camera.position.z += (targetCamZ - camera.position.z) * 0.2;
+                
+                camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+        }
+    </script>
+</body>
+</html>
