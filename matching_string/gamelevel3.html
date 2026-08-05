@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Matching string level 3</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-image: url("./img/img6.jpg");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: 0;
+      }
+
+      h1 {
+        color: white;
+      }
+
+      .container {
+        text-align: center;
+        padding: 20px;
+        margin: 0 auto;
+        margin-top: 80px;
+        display: inline-block;
+        background-color: #002218;
+        border-radius: 10px;
+        border: 2px solid rgb(128, 218, 133);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      }
+
+      #question {
+        font-size: 30px;
+        margin-top: 5px;
+        margin-bottom: 10px;
+        color: #fff;
+        word-wrap: break-word;
+        max-height: 120px;
+        max-width: 1000px;
+      }
+
+      #answer {
+        font-size: 24px;
+        color: #fff;
+      }
+
+      #shuffle-box {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      .shuffle-letter {
+        font-size: 20px;
+        margin: 5px;
+        padding: 10px;
+        background-image: url("./img/img6.jpg");
+        cursor: pointer;
+        border-radius: 5px;
+        border: 2px solid rgb(128, 218, 133);
+      }
+
+      .shuffle-letter:hover {
+        color: #fff;
+      }
+
+      #message {
+        font-size: 24px;
+        margin-top: 20px;
+        color: #fff;
+      }
+
+      #score {
+        font-size: 24px;
+        margin-top: 20px;
+        color: #fff;
+      }
+
+      .containerbutton {
+        /* background-color: #6b2323; */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-top: 10px;
+        display: inline-block;
+      }
+
+      .button-keluar {
+        /* position: absolute; */
+        width: 190px;
+        height: 44px;
+        bottom: 35px;
+        left: 590px;
+        font-size: larger;
+        font-weight: bold;
+        color: #fff;
+        border-color: rgb(255, 255, 255);
+        border-radius: 10px;
+        background-color: rgb(0, 46, 19);
+      }
+
+      .button-next-level {
+        /* position: absolute; */
+        width: 190px;
+        height: 44px;
+        bottom: 35px;
+        left: 390px;
+        font-size: larger;
+        font-weight: bold;
+        color: #fff;
+        border-color: rgb(255, 255, 255);
+        border-radius: 10px;
+        background-color: rgb(0, 46, 19);
+        display: none; /* Mulai dengan mode tersembunyi */
+      }
+
+      .gamedanbutton {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="gamedanbutton">
+      <div class="container">
+        <h1>LEVEL 3</h1>
+        <div id="question">
+          <!-- Soal akan ditampilkan di sini -->
+        </div>
+        <div id="answer">
+          <!-- Kotak jawaban akan ditampilkan di sini -->
+        </div>
+        <div id="shuffle-box">
+          <!-- Box huruf yang teracak akan ditampilkan di sini -->
+        </div>
+        <div id="message">
+          <!-- Pemberitahuan jawaban akan ditampilkan di sini -->
+        </div>
+        <div id="score">Skor:0</div>
+      </div>
+      <div class="containerbutton">
+        <button class="button-keluar" id="exit-button">KELUAR</button>
+        <button class="button-next-level" id="next-level-button">
+          Next Level
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // Daftar soal dan jawaban
+      const questions = [
+        {
+          question: "Apa yang dilakukan oleh perintah SQL SELECT:",
+          answer: "MENGAMBIL-DATA-TABEL",
+        },
+        {
+          question: "Perintah yang Digunakan untuk membuat database adalah:",
+          answer: "DELETE-FROM-TABEL",
+        },
+        {
+          question: "Apa kegunaan perintah SQL UPDATE:",
+          answer: "MEMPERBARUI-DATA",
+        },
+        {
+          question: "Apa yang dimaksud dengan SQL DISTINCT:",
+          answer: "MENGAMBIL-NILAI-UNIK",
+        },
+        {
+          question: "Apa arti SQL LIMIT:",
+          answer: "BATASAN-JUMLAH-HASIL",
+        },
+        {
+          question: "Apa itu PRIMARY KEY dalam SQL:",
+          answer: "IDENTIFIKASI-UNIK-BARIS",
+        },
+        {
+          question: "Apa yang dilakukan oleh DELETE FROM:",
+          answer: "MENGHAPUS-DATA-BARIS",
+        },
+      ];
+
+      // Fungsi untuk mengacak huruf
+      function shuffleLetters(letters) {
+        return letters
+          .split("")
+          .sort(() => Math.random() - 0.5)
+          .join("");
+      }
+
+      // Inisialisasi
+      const shuffleBox = document.getElementById("shuffle-box");
+      const answerBox = document.getElementById("answer");
+      const messageBox = document.getElementById("message");
+      const scoreBox = document.getElementById("score");
+      let currentAnswer = "";
+      let currentQuestionIndex = 0;
+      let score = 0;
+      let currentLevel = 1;
+
+      // Fungsi untuk menambah skor
+      function addScore() {
+        score += 10; //menyesuaikan penambahan skor
+        scoreBox.innerText = "Skor: " + score;
+      }
+
+      function resetGame() {
+        if (currentQuestionIndex < questions.length) {
+          // Bersihkan kotak jawaban
+          answerBox.innerText = "";
+          currentAnswer = "";
+          // Hapus pemberitahuan
+          messageBox.innerText = "";
+          // Hapus huruf teracak
+          shuffleBox.innerHTML = "";
+          // Tampilkan soal yang baru
+          document.getElementById("question").innerText =
+            questions[currentQuestionIndex].question;
+          // Tampilkan huruf teracak yang baru
+          const shuffledLetters = shuffleLetters(
+            questions[currentQuestionIndex].answer
+          );
+          shuffledLetters.split("").forEach((letter) => {
+            const letterElement = document.createElement("div");
+            letterElement.innerText = letter;
+            letterElement.className = "shuffle-letter";
+            letterElement.addEventListener("click", () => {
+              // Pindahkan huruf ke kotak jawaban jika masih kosong
+              if (
+                answerBox.innerText.length <
+                questions[currentQuestionIndex].answer.length
+              ) {
+                answerBox.innerText += letter;
+                currentAnswer += letter;
+                letterElement.style.display = "none";
+              }
+              // Cek jawaban
+              if (currentAnswer === questions[currentQuestionIndex].answer) {
+                messageBox.innerText = "Jawaban benar!";
+                // Tambahkan skor saat jawaban benar
+                addScore();
+                // Pindah ke soal berikutnya
+                currentQuestionIndex++;
+                setTimeout(() => {
+                  resetGame();
+                }, 1000); // Setelah 1 detik, permainan akan melanjutkan soal berikutnya
+              } else if (
+                currentAnswer.length ===
+                questions[currentQuestionIndex].answer.length
+              ) {
+                messageBox.innerText = "Jawaban salah!";
+                // Jika jawaban salah, atur pengulangan permainan
+                setTimeout(() => {
+                  resetGame();
+                }, 1500); // Setelah 1,5 detik, permainan akan diulang
+              } else {
+                messageBox.innerText = "";
+              }
+            });
+            shuffleBox.appendChild(letterElement);
+          });
+        } else {
+          // Semua soal sudah selesai
+          document.getElementById("question").innerText = "Permainan Selesai!";
+          answerBox.innerText = "";
+          shuffleBox.innerHTML = "";
+          messageBox.innerText = "";
+          // Tampilkan tombol "Next Level"
+          nextLevelButton.style.display = "block";
+        }
+      }
+
+      // Memulai permainan
+      resetGame();
+
+      // Ambil tombol keluar berdasarkan ID
+      const exitButton = document.getElementById("exit-button");
+
+      // Tambahkan event listener untuk tombol keluar
+      exitButton.addEventListener("click", () => {
+        // Redirect kembali ke halaman menu
+        window.location.href =
+          "https://22091397005muhammadainurrofik.github.io/gameweb/bggame.html"; //halaman yang dituju//
+      });
+
+      // Ambil tombol next level berdasarkan ID
+      const nextLevelButton = document.getElementById("next-level-button");
+
+      // Tambahkan event listener untuk tombol next level
+      nextLevelButton.addEventListener("click", () => {
+        // Redirect kembali ke halaman level berikutnya
+        window.location.href =
+          "https://22091397005muhammadainurrofik.github.io/gameweb/gamelevel4.html"; //halaman yang dituju//
+      });
+    </script>
+  </body>
+</html>
